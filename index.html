@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Script2Video Studio</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>&#127916;</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Script2Video <span>Studio</span></div>
+  <div class="status-pill" id="helperPill" hidden>browser mode: direct links unlocked</div>
+  <button id="btnHelp" class="ghost">Help</button>
+</header>
+
+<main class="wizard">
+
+  <section class="card" id="stepInput">
+    <h2>Describe your video</h2>
+    <p class="muted">Paste your script. Each paragraph becomes one scene. The AI finds matching footage, edits, trims and adds the voiceover automatically.</p>
+    <div class="field">
+      <label>Your script</label>
+      <textarea id="scriptInput" rows="9" placeholder="Paste or type your script here.
+
+Each paragraph becomes one scene. Example:
+
+The ocean covers more than seventy percent of our planet.
+
+Beneath the waves lives a world of color and mystery."></textarea>
+    </div>
+    <div class="field">
+      <label>Visual style description (optional, can be long)</label>
+      <input type="text" id="styleHints" placeholder="e.g. slow cinematic drone shots of turquoise ocean waves at golden hour, dramatic clouds">
+    </div>
+    <details class="adv-box">
+      <summary>Optional: background music (guaranteed audio in export)</summary>
+      <p class="muted small">Pick any music file from your device - it plays under the whole video and is always saved into the exported file.</p>
+      <div class="field"><input type="file" id="musicFile" accept="audio/*"></div>
+      <div class="row-between">
+        <span id="musicName" class="muted small"></span>
+        <button id="btnMusicClear" class="ghost small-btn">Remove</button>
+      </div>
+      <label class="inline">Music volume <input type="range" id="rgMusicVol" min="0" max="100" value="25"></label>
+    </details>
+    <div class="row opts-row">
+      <label>Aspect
+        <select id="aspectSel">
+          <option value="16:9">16:9 YouTube</option>
+          <option value="9:16">9:16 Shorts/TikTok</option>
+          <option value="1:1">1:1 Square</option>
+        </select>
+      </label>
+      <label>Quality
+        <select id="resSel">
+          <option value="720p" selected>720p</option>
+          <option value="1080p">1080p HD</option>
+        </select>
+      </label>
+      <label>Voice
+        <select id="selVoice"></select>
+      </label>
+    </div>
+    <button id="btnGenerate" class="primary big">Generate Video</button>
+  </section>
+
+  <section class="card" id="stepProgress" hidden>
+    <h2>Generating your video...</h2>
+    <div class="progress-wrap big"><div id="genProgBar"></div></div>
+    <ul id="logList"></ul>
+    <button id="btnCancelGen" class="ghost danger">Cancel</button>
+  </section>
+
+  <section class="card" id="stepPreview" hidden>
+    <div class="row-between">
+      <h2>Your video is ready</h2>
+      <button id="btnRegenerate" class="ghost small-btn">Make another</button>
+    </div>
+    <div class="stage-wrap"><canvas id="stage"></canvas></div>
+    <div class="transport">
+      <button id="btnPlay" class="icon-btn">&#9654;</button>
+      <input type="range" id="scrubber" min="0" max="100" step="0.01" value="0">
+      <span id="timeLabel" class="mono small">0:00 / 0:00</span>
+    </div>
+    <div id="sceneBar" class="scene-bar"></div>
+
+    <div class="export-box">
+      <label class="inline" id="tabAudioRow" hidden><input type="checkbox" id="cbTabAudio" checked> Capture preview voices into file via screen-share audio (Chrome/Edge)</label>
+      <button id="btnExport" class="primary big">Download Video</button>
+      <div class="progress-wrap" id="progWrap" hidden><div id="progBar"></div></div>
+      <div id="exportStatus" class="muted small"></div>
+      <a id="dlLink" class="dl-link" hidden></a>
+    </div>
+
+    <details class="adv-box" id="advBox">
+      <summary>Fine-tune individual scenes (optional)</summary>
+      <p class="muted small">Tap a scene to change its visual, trim it or redo its voiceover.</p>
+      <div id="advScenes" class="scene-list"></div>
+      <div id="advEditor" hidden>
+        <div class="field">
+          <label>Narration / caption text</label>
+          <textarea id="edText" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label>Search different visuals for this scene</label>
+          <div class="row">
+            <input type="text" id="edKeywords" placeholder="keywords...">
+            <button id="btnSearchMedia" class="primary">Search</button>
+          </div>
+        </div>
+        <div class="tabs">
+          <button class="tab active" data-kind="image">Images</button>
+          <button class="tab" data-kind="video">Videos</button>
+        </div>
+        <div id="searchStatus" class="muted small"></div>
+        <div id="resultsGrid" class="results-grid"></div>
+        <div class="field">
+          <label>Paste any direct video/image URL</label>
+          <div class="row">
+            <input type="text" id="edCustomUrl" placeholder="https://... .mp4 or page link">
+            <button id="btnUseUrl" class="ghost">Use</button>
+          </div>
+          <span class="muted small" id="urlHint">Paste a direct media link (.mp4 / .webm / .jpg)</span>
+        </div>
+        <div id="mediaInfo" class="media-info"></div>
+        <div id="trimBox" hidden>
+          <div class="field">
+            <label id="lblTrimStart">Clip start: 0.0s</label>
+            <input type="range" id="rgTrimStart" min="0" max="30" step="0.1" value="0">
+          </div>
+          <div class="field">
+            <label id="lblTrimDur">Scene length: 5.0s</label>
+            <input type="range" id="rgDur" min="1" max="60" step="0.1" value="5">
+          </div>
+        </div>
+        <div class="field">
+          <label>Visual effects</label>
+          <div class="row">
+            <select id="selFilter" style="flex:1;min-width:130px">
+              <option value="">Filter: none</option>
+              <option value="warm">Warm sunset</option>
+              <option value="cool">Cool blue</option>
+              <option value="vivid">Vivid pop</option>
+              <option value="vintage">Vintage film</option>
+              <option value="grayscale">Black &amp; white</option>
+              <option value="noir">Noir contrast</option>
+              <option value="sepia">Sepia</option>
+            </select>
+            <span class="muted small">Speed</span>
+            <input type="range" id="rgSpeed" min="0.5" max="2" step="0.05" value="1" style="width:110px">
+            <span id="lblSpeed" class="mono small">1.00x</span>
+          </div>
+        </div>
+        <div class="field row-between">
+          <label class="inline"><input type="checkbox" id="cbOverlay" checked> Show caption</label>
+          <select id="selTransition" class="half">
+            <option value="">Transition: AI/auto</option>
+            <option value="fade">fade</option>
+            <option value="cut">hard cut</option>
+          </select>
+          <select id="selOverlayPos" class="half">
+            <option value="bottom">bottom</option>
+            <option value="center">center</option>
+            <option value="title">top title</option>
+          </select>
+        </div>
+        <div class="row">
+          <button id="btnGenVO" class="ghost">Redo voiceover</button>
+          <button id="btnPreviewVO" class="ghost">Listen</button>
+          <span id="voStatus" class="muted small"></span>
+        </div>
+      </div>
+    </details>
+  </section>
+</main>
+
+<div id="toasts" class="toasts"></div>
+
+<div id="helpModal" class="modal" hidden>
+  <div class="modal-card">
+    <h2>How it works</h2>
+    <ol>
+      <li>Type your script. Blank lines split scenes.</li>
+      <li>Press <b>Generate Video</b>. The AI searches open-license sources (Openverse, Wikimedia, plus Pexels if you add a free key), picks the best clip per scene, trims everything to the voiceover length and assembles the final cut.</li>
+      <li>Preview, then hit <b>Download Video</b>. No watermark, no upload, nothing leaves your device except media searches.</li>
+    </ol>
+    <h3>Browsing the whole web (recommended)</h3>
+    <p>For security, browsers block pages from reading other sites directly. To unlock the full power - HD videos from Pexels, Pixabay and Mixkit plus reliable embedded voices - double-click <b>Start Studio.bat</b> instead of opening index.html directly. It starts a tiny private helper on your machine (nothing is uploaded anywhere) and opens the app. The app detects it automatically.</p>
+    <h3>AI brain (recommended - paste your keys)</h3>
+    <p class="muted small">Keys power the AI director (scene planning, perfect visual matching) and premium voices. They are stored only in this browser. You can also put them in <code>js/config.js</code> or the <code>.env</code> file.</p>
+    <div class="field"><label>OpenRouter API key</label><input type="text" id="keyOpenrouter" placeholder="sk-or-..."></div>
+    <div class="field"><label>OpenCode Zen API key</label><input type="text" id="keyZen" placeholder="zen key..."></div>
+    <h3>Optional higher-quality source keys</h3>
+    <div class="field"><label>Pexels API key (free at pexels.com/api)</label><input type="text" id="keyPexels"></div>
+    <div class="field"><label>Pixabay API key (free at pixabay.com/api/docs)</label><input type="text" id="keyPixabay"></div>
+    <h3>Voiceovers &amp; audio</h3>
+    <p>Voices come from free online speech services. If your network blocks them, preview reads scenes aloud with your device's built-in reader. For audio inside the exported file you have three options - none need any setup:</p>
+    <ul>
+      <li><b>Background music</b>: add any music file in step 1 - it is always embedded in the export.</li>
+      <li><b>Screen-share capture</b> (Chrome/Edge): when exporting, tick the screen-share audio option and choose "This tab" with audio sharing on - it records everything you hear, including the built-in voices.</li>
+      <li><b>Different network</b>: voice services sometimes work from other connections.</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Keep this tab visible while downloading the final video.</li>
+      <li>If a scene used a blocked source you'll see a warning before export.</li>
+      <li>Write concrete visual nouns in your script or style description (e.g. "ocean waves at sunset") - the AI matches footage by those words.</li>
+    </ul>
+    <button id="btnCloseHelp" class="primary">Done</button>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/state.js"></script>
+<script src="js/search.js"></script>
+<script src="js/tts.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/exporter.js"></script>
+<script src="js/agent.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
